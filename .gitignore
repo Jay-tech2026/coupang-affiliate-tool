@@ -1,0 +1,4 @@
+.env
+extension/config.js
+*.csv
+node_modules/
