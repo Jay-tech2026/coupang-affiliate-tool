@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>酷澎當日特價聯盟工具</title>
+  <style>
+    :root{color-scheme:light;--ink:#172033;--muted:#667085;--brand:#e84c2a;--paper:#fff;--line:#e4e7ec;--bg:#f6f7fb;--ok:#087443}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px/1.5 system-ui,"Noto Sans TC",sans-serif;color:var(--ink)}
+    header{background:linear-gradient(120deg,#251c49,#e84c2a);color:#fff;padding:38px max(24px,calc((100% - 1180px)/2)) 46px}
+    h1{margin:0 0 8px;font-size:clamp(26px,4vw,42px)}header p{margin:0;opacity:.86}
+    main{max-width:1180px;margin:-20px auto 50px;padding:0 20px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 12px 35px #18203a12}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.grow{flex:1}.status{color:var(--muted)}button,input{font:inherit}
+    button{border:0;border-radius:9px;padding:10px 15px;font-weight:700;cursor:pointer;background:#eef0f5;color:var(--ink)}button.primary{background:var(--brand);color:#fff}button:disabled{opacity:.45;cursor:not-allowed}
+    input[type=text]{border:1px solid var(--line);border-radius:9px;padding:9px 11px;min-width:180px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:20px}
+    .card{position:relative;border:1px solid var(--line);border-radius:13px;overflow:hidden;background:#fff}.card img{width:100%;aspect-ratio:1.3;object-fit:cover;background:#eee}.card-body{padding:13px}.card h2{font-size:15px;line-height:1.42;height:2.84em;overflow:hidden;margin:0 0 10px}.price{font-size:19px;font-weight:800;color:var(--brand)}.select{position:absolute;top:10px;left:10px;width:23px;height:23px;accent-color:var(--brand)}
+    .result{margin-top:20px;overflow:auto}.result table{width:100%;border-collapse:collapse}.result th,.result td{text-align:left;border-bottom:1px solid var(--line);padding:10px;max-width:440px}.result a{color:#185abc;word-break:break-all}.error{margin-top:14px;padding:12px;border-radius:9px;background:#fff0ed;color:#a52d19;white-space:pre-wrap}.empty{text-align:center;color:var(--muted);padding:55px 10px}.notice{font-size:13px;color:var(--muted);margin-top:14px}
+  </style>
+</head>
+<body>
+<header><h1>酷澎聯盟短網址服務</h1><p>本頁提供本機 API；高折扣搜尋請使用 Chrome 擴充工具。</p></header>
+<main><section class="panel">
+  <div class="toolbar">
+    <button id="load" class="primary">檢查搜尋工具</button>
+    <button id="all" disabled>全選</button><button id="none" disabled>取消全選</button>
+    <input id="discount" type="text" inputmode="numeric" value="60" size="3" title="最低折扣率">％以上
+    <input id="keywords" type="text" value="特價,折扣,出清,3折" placeholder="搜尋詞（逗號分隔）">
+    <input id="subId" type="text" maxlength="50" placeholder="Sub ID（選填）">
+    <span class="grow"></span><span id="status" class="status">正在檢查設定…</span>
+    <button id="generate" class="primary" disabled>產生聯盟連結</button>
+    <button id="csv" disabled>匯出 CSV</button>
+  </div>
+  <div id="error"></div><div id="products" class="grid"><div class="empty">酷澎封鎖伺服器直接搜尋。請在 Chrome 安裝並點擊「酷澎高折扣聯盟工具」擴充功能；不要在此頁等待商品。</div></div>
+  <div id="result" class="result"></div>
+  <p class="notice">發布連結時請依適用法規與酷澎規範清楚揭露聯盟／廣告關係。價格與供貨以酷澎頁面即時資訊為準。</p>
+</section></main>
+<script>
+  const $=id=>document.getElementById(id); let products=[],links=[];
+  const money=v=>v==null?"價格未提供":new Intl.NumberFormat("zh-TW",{style:"currency",currency:"TWD",maximumFractionDigits:0}).format(v);
+  function busy(on,msg="處理中…"){$("load").disabled=on;$(`generate`).disabled=on||!products.length;$(`status`).textContent=msg}
+  function fail(error){const details=error.details?`\n${JSON.stringify(error.details,null,2)}`:"";$(`error`).innerHTML=`<div class="error">${escapeHtml(error.message+details)}</div>`;busy(false,"操作失敗")}
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+  async function api(url,options){const r=await fetch(url,options);const d=await r.json();if(!r.ok)throw Object.assign(new Error(d.error||`HTTP ${r.status}`),{details:d.details});return d}
+  function renderProducts(){if(!products.length){$(`products`).innerHTML='<div class="empty">沒有找到符合門檻的商品，請更換搜尋詞</div>';return}$(`products`).innerHTML=products.map((p,i)=>`<article class="card"><input class="select" type="checkbox" data-i="${i}" checked><img src="${escapeHtml(p.image)}" alt="" loading="lazy"><div class="card-body"><h2 title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h2><div class="price">${p.discount}% OFF · ${money(p.price)}</div></div></article>`).join("");$(`all`).disabled=$(`none`).disabled=false;$(`generate`).disabled=false}
+  $("load").onclick=async()=>{try{$(`error`).innerHTML="";busy(true,"正在搜尋並驗證折扣…");const min=Math.max(1,Math.min(99,Number($(`discount`).value)||60));const qs=new URLSearchParams({minDiscount:String(min),keywords:$(`keywords`).value});const d=await api(`/api/deals?${qs}`);products=d.products;renderProducts();busy(false,`找到 ${products.length} 項 ${min}% 以上商品`)}catch(e){fail(e)}};
+  $("all").onclick=()=>document.querySelectorAll(".select").forEach(x=>x.checked=true);$("none").onclick=()=>document.querySelectorAll(".select").forEach(x=>x.checked=false);
+  $("generate").onclick=async()=>{try{const selected=[...document.querySelectorAll(".select:checked")].map(x=>products[+x.dataset.i]);if(!selected.length)throw new Error("請至少勾選一項商品");$(`error`).innerHTML="";busy(true,"產生連結中…");const d=await api("/api/deeplinks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({urls:selected.map(x=>x.url),subId:$(`subId`).value.trim()})});links=d.links.map((link,i)=>({...link,name:selected[i]?.name||""}));$(`result`).innerHTML=`<table><thead><tr><th>商品</th><th>聯盟連結</th></tr></thead><tbody>${links.map(x=>`<tr><td>${escapeHtml(x.name)}</td><td><a href="${escapeHtml(x.affiliateUrl)}" target="_blank" rel="noopener">${escapeHtml(x.affiliateUrl)}</a></td></tr>`).join("")}</tbody></table>`;$(`csv`).disabled=!links.length;busy(false,`已產生 ${links.length} 個連結`)}catch(e){fail(e)}};
+  $("csv").onclick=()=>{const q=v=>'"'+String(v??"").replaceAll('"','""')+'"';const csv="\uFEFF商品名稱,原始網址,聯盟連結\r\n"+links.map(x=>[x.name,x.originalUrl,x.affiliateUrl].map(q).join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`coupang-deals-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href)};
+  api("/api/status").then(d=>{$(`status`).textContent=d.configured?`API 金鑰已設定（${d.market}）`:"尚未設定 API 金鑰"}).catch(()=>{$(`status`).textContent="無法檢查設定"});
+</script>
+</body></html>
