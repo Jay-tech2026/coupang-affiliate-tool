@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "酷澎高折扣聯盟工具",
+  "version": "1.4.11",
+  "description": "自行搜尋酷澎台灣商城 60% 以上商品並產生 coupa.ng 短網址。",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "downloads",
+    "storage",
+    "unlimitedStorage",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "https://www.tw.coupang.com/*",
+    "https://tw.coupang.com/*",
+    "https://*.tw.coupang.com/*",
+    "https://*.coupangcdn.com/*",
+    "https://api-gateway.tw.coupang.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "酷澎高折扣商品"
+  }
+}
